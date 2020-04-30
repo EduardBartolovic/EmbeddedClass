@@ -1,6 +1,6 @@
 /*
  ============================================================================
- Name        : hello.c
+ Name        : Frequency.c
  Author      : Richard Reik, Eduard Bartolovic
  Description : Generates a Frequency of one Ms
  ============================================================================
