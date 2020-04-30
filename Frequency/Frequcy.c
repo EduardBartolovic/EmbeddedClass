@@ -1,10 +1,8 @@
 /*
  ============================================================================
  Name        : hello.c
- Author      : Educhard
- Version     :
- Copyright   : Your copyright notice
- Description : Hello World in C, Ansi-style
+ Author      : Richard Reik, Eduard Bartolovic
+ Description : Generates a Frequency of one Ms
  ============================================================================
  */
 
@@ -26,62 +24,59 @@ int main(void) {
 	long int validate_nsec[LOOP_ITERATIONS]; //validiere die verstrichenen NS
 	long int validate_sec[LOOP_ITERATIONS]; //validiere die verstrichenen SEc
 
-	if (-1 == clock_gettime(CLOCK_REALTIME, &start_time)){
-		perror ("Wir haben die Uhr falsch gelesen");
+	if (-1 == clock_gettime(CLOCK_REALTIME, &start_time)){ //Holen der Aktuellen Zeit
+		perror ("Error in get Time");
 		exit (EXIT_FAILURE);
 	}
-	abs_start_time = start_time;
+	abs_start_time = start_time;  //Speichern der Absolutenstartzeit
 
-	for (int i = 0; i < LOOP_ITERATIONS; ++i)
+	for (int i = 0; i < LOOP_ITERATIONS; ++i) //Periodenschleife
 	{
-		if (start_time.tv_nsec >= WRAP_AROUNT ){
+		if (start_time.tv_nsec >= WRAP_AROUNT ){ //Falls ein Sekunden wraparound passieren sollte.
 			start_time.tv_sec += 1;
 			start_time.tv_nsec = start_time.tv_nsec %  WRAP_AROUNT;
 		} else {
-			start_time.tv_nsec += MIO;
+			start_time.tv_nsec += MIO; //sonst 1ms warten
 		}
 
-    	if (-1 == clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &start_time, NULL)){
-    		perror ("Wir haben länger als 1 ms gebraucht");
+    	if (-1 == clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &start_time, NULL)){ //warten bis Zielzeit erreicht
+    		perror ("Error in WAIT");
     		exit (EXIT_FAILURE);
     	}
 
-    	if (-1 == clock_gettime(CLOCK_REALTIME, &validate_time)){
-    		perror ("Beim Überprüfen der Zeit ist ein Fehler aufgetreten");
+    	if (-1 == clock_gettime(CLOCK_REALTIME, &validate_time)){ //Holen der Aktuellen Zeit für die Validierung
+    		perror ("Error in get Time");
     		exit (EXIT_FAILURE);
     	}
-    	validate_nsec[i] = validate_time.tv_nsec;
-    	validate_sec[i] = validate_time.tv_sec;
+    	validate_nsec[i] = validate_time.tv_nsec; //Speichern der Validierungszeiten sec
+    	validate_sec[i] = validate_time.tv_sec;//Speichern der Validierungszeiten nano sec
 	}
 
 	if (-1 == clock_gettime(CLOCK_REALTIME, &end_time)){
-		perror ("Beim Überprüfen der Zeit am Ende ist ein Fehler aufgetreten");
+		perror ("Error in get Time");
 		exit (EXIT_FAILURE);
 	}
 
+	//Gesamte Programzeit
 	printf("Ende in sec %ld und msec %ld \n \n", end_time.tv_sec - abs_start_time.tv_sec, end_time.tv_nsec - abs_start_time.tv_nsec);
 
-
-	for (int i = 1; i < LOOP_ITERATIONS; ++i){
-		if(validate_sec[i] > validate_sec[i-1]){
-			erwartung = (validate_nsec[i] + WRAP_AROUNT + MIO) - (validate_nsec[i-1]);
-			printf("An stelle i = %d", i);
-			printf("   validate_nscec = %ld     validate_nsec-1 = %ld \n", validate_nsec[i],validate_nsec[i-1]);
+	for (int i = 1; i < LOOP_ITERATIONS; ++i){	//Validierung
+		if(validate_sec[i] > validate_sec[i-1]){ // Für Wraparound
+			erwartung = (validate_nsec[i] + WRAP_AROUNT + MIO) - (validate_nsec[i-1]); //Offset um eine Sekunde
+			//printf("An stelle i = %d", i);
+			//printf("   validate_nscec = %ld     validate_nsec-1 = %ld \n", validate_nsec[i],validate_nsec[i-1]);
 		} else {
 			erwartung = validate_nsec[i] - validate_nsec[i-1];
 		}
 
-		if(erwartung > max){
-			printf("alt = %ld", max);
+		if(erwartung > max){ //neuer Rekord in maximaler Wartezeit
 			max = erwartung;
-			printf("****** An stelle i = %d", i);
-			printf(" # max wurde überschritten  : validate_nscec = %ld     validate_nsec-1 = %ld ### neuer max  = %ld \n", validate_nsec[i],validate_nsec[i-1], max);
-
-		} else if (erwartung < min){
-			printf("alt = %ld", min);
+			//printf("****** An stelle i = %d", i);
+			//printf(" # max wurde überschritten  : validate_nscec = %ld     validate_nsec-1 = %ld ### neuer max  = %ld \n", validate_nsec[i],validate_nsec[i-1], max);
+		} else if (erwartung < min){ //neuer Rekord in minimaler Wartezeit
 			min = erwartung;
-			printf("##### An stelle i = %d", i);
-			printf(" # Min wurde unterschritten  : validate_nscec = %ld     validate_nsec-1 = %ld ### neuer min = %ld \n", validate_nsec[i],validate_nsec[i-1], min);
+			//printf("##### An stelle i = %d", i);
+			//printf(" # Min wurde unterschritten  : validate_nscec = %ld     validate_nsec-1 = %ld ### neuer min = %ld \n", validate_nsec[i],validate_nsec[i-1], min);
 		}
 		// printf("Zeit %d war %ld \n", i, erwartung);
 	}
