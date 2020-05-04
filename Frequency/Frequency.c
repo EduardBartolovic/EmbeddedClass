@@ -24,7 +24,7 @@ int main(void) {
 	long int validate_nsec[LOOP_ITERATIONS]; //validiere die verstrichenen NS
 	long int validate_sec[LOOP_ITERATIONS]; //validiere die verstrichenen SEc
 
-	if (-1 == clock_gettime(CLOCK_REALTIME, &start_time)){ //Holen der Aktuellen Zeit
+	if (-1 == clock_gettime(CLOCK_MONOTONIC, &start_time)){ //Holen der Aktuellen Zeit
 		perror ("Error in get Time");
 		exit (EXIT_FAILURE);
 	}
@@ -39,12 +39,12 @@ int main(void) {
 			start_time.tv_nsec += MIO; //sonst 1ms warten
 		}
 
-    	if (-1 == clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &start_time, NULL)){ //warten bis Zielzeit erreicht
+    	if (-1 == clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &start_time, NULL)){ //warten bis Zielzeit erreicht
     		perror ("Error in WAIT");
     		exit (EXIT_FAILURE);
     	}
 
-    	if (-1 == clock_gettime(CLOCK_REALTIME, &validate_time)){ //Holen der Aktuellen Zeit für die Validierung
+    	if (-1 == clock_gettime(CLOCK_MONOTONIC, &validate_time)){ //Holen der Aktuellen Zeit für die Validierung
     		perror ("Error in get Time");
     		exit (EXIT_FAILURE);
     	}
@@ -52,7 +52,7 @@ int main(void) {
     	validate_sec[i] = validate_time.tv_sec;//Speichern der Validierungszeiten nano sec
 	}
 
-	if (-1 == clock_gettime(CLOCK_REALTIME, &end_time)){
+	if (-1 == clock_gettime(CLOCK_MONOTONIC, &end_time)){
 		perror ("Error in get Time");
 		exit (EXIT_FAILURE);
 	}
