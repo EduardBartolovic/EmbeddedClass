@@ -11,66 +11,94 @@
 #include <limits.h>
 
 
-#define PRIRORITY 30
-
 void waste_msecs(unsigned int msecs, double corr);
 
-double calculateDiff(bool prints, struct timespec start_time, struct timespec end_time);
+double calculateDiff( struct timespec start_time, struct timespec end_time);
 
-double makeRun(bool prints, int wait, double corr,  struct timespec start_time, struct timespec end_time);
+double makeRun( int wait, double corr,  struct timespec start_time, struct timespec end_time);
 
 void* threadFunction( void* arg);
 
 int main(void) {
-    
-    pthread_t thread_id;
-    pthread_create(&thread_id, NULL, threadFunction, NULL);
-    
-    //struct sched_param{
-    //    50;//sched priority
-    //}
 
-    //error handling
-    //pthread_attr_getschedparam(pthread_attr_t *attr, struct sched_param *param);
-    
+	struct sched_param sh_param;
+	int policy = SCHED_RR;//SCHED_FIFO;
+	sh_param.sched_priority = 49;
+	if (-1 == sched_setscheduler(0,policy, &sh_param)){
+    	perror ("Error in Create");
+		exit (EXIT_FAILURE);
+    }
+
+	pthread_t thread_id;
+	pthread_attr_t attr;
+
+	if (-1 == pthread_attr_init(&attr)){
+    	perror ("Error in Create");
+		exit (EXIT_FAILURE);
+    }
+
+    if (-1 == pthread_create(&thread_id, &attr, threadFunction, NULL)){
+    	perror ("Error in Create");
+		exit (EXIT_FAILURE);
+    }
+
+    if (-1 == pthread_join(thread_id, NULL)){
+    	perror ("Error in JOIN");
+		exit (EXIT_FAILURE);
+    }
+
 	return EXIT_SUCCESS;
 }
 
-
 void* threadFunction( void* arg){
-    
+
     struct timespec start_time;
 	struct timespec end_time;
-	double msec_diff;
-	bool printing;
+	int LOOPITERATIONS = 10;
 	double corr;
 	unsigned int wait;
-	
-	wait = 150;
+	double msec_diff[LOOPITERATIONS];
+
+	wait = 50;
 	corr = 1.0;
-	printing = true;
 
-	makeRun(printing, wait, corr, start_time, end_time );
-
-	//+++++++++++++++++++++++
-
-	msec_diff = makeRun(printing, wait, corr, start_time, end_time );
+	makeRun( wait, corr, start_time, end_time );//warm up
 
 	//+++++++++++++++++++++++
 
-	corr = wait / msec_diff;
+	int rekord_index = -1;
+	double rekord = -1;
+	double msec_diff_run;
+	for(int counter = 0 ; counter < LOOPITERATIONS; counter++){
+		msec_diff_run = makeRun( wait, corr, start_time, end_time );
+		if (msec_diff_run > rekord){
+			rekord = msec_diff_run;
+			rekord_index = counter;
+		}
+		msec_diff[counter] = msec_diff_run;
+	}
+
+	double totalTime = 0;
+	for(int counter = 0 ; counter < LOOPITERATIONS; counter++){
+		if (counter != rekord_index){ //ignore highest value
+			totalTime += msec_diff[counter];
+		}
+	}
+
+	corr = wait / (totalTime/(LOOPITERATIONS-1));
 	printf("\nCalibration Ready => Corr: %lf \n", corr);
 
 	//+++++++++++++++++++++++
 
-	for (int counter = 0; counter < 15; counter++){
-		msec_diff = makeRun(printing, wait, corr, start_time, end_time );
+	for (int counter = 0; counter < 20; counter++){
+		makeRun( wait, corr, start_time, end_time );
+		//sleep(1);
 	}
 
 	return 0;
 }
 
-double makeRun(bool prints, int wait, double corr, struct timespec start_time, struct timespec end_time){
+double makeRun( int wait, double corr, struct timespec start_time, struct timespec end_time){
 	if (-1 == clock_gettime(CLOCK_MONOTONIC, &start_time)){ //Holen der Aktuellen Zeit
 		perror ("Error in get Time");
 		exit (EXIT_FAILURE);
@@ -80,31 +108,28 @@ double makeRun(bool prints, int wait, double corr, struct timespec start_time, s
 		perror ("Error in get Time");
 		exit (EXIT_FAILURE);
 	}
-	double msec_diff = calculateDiff(prints, start_time, end_time);
+	double msec_diff = calculateDiff( start_time, end_time);
 	return msec_diff;
 }
 
 void waste_msecs(unsigned int msecs, double corr){
-	int delay = 100000* msecs;
-	if (corr != 1.0){
-		delay = (int) (100000 * corr * msecs);
-	}
+	int delay = (int) (100000 * msecs * corr);
 	volatile int dummy;
 	for(int counter = 0; counter < delay ;counter++){
 		dummy++;
 	}
 }
 
-double calculateDiff(bool prints, struct timespec start_time, struct timespec end_time){
+double calculateDiff( struct timespec start_time, struct timespec end_time){
 	long int sec_diff = end_time.tv_sec - start_time.tv_sec;
-	if(prints) {printf(" Sec: %ld \n", sec_diff);}
+	//printf(" Sec: %ld \n", sec_diff);
 	long int nsec_diff = 0;
 	if (sec_diff > 0){
 		nsec_diff = end_time.tv_nsec - start_time.tv_nsec + 1000000000;
-		if(prints) {printf(" 1 Nano Sec: %ld \n", nsec_diff);}
+		//printf(" 1 Nano Sec: %ld \n", nsec_diff);
 	}else{
 		nsec_diff = end_time.tv_nsec - start_time.tv_nsec;
-		if(prints) {printf(" 2 Nano Sec: %ld \n", nsec_diff);}
+		//printf(" 2 Nano Sec: %ld \n", nsec_diff);
 	}
 
 	double msec_diff = (double)nsec_diff / 1000000;
