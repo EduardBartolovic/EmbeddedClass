@@ -1,26 +1,14 @@
-/*
- ============================================================================
- Name        : Aufgabe3.c
- Author      : 
- Version     :
- Copyright   : Your copyright notice
- Description : Hello World in C, Ansi-style
- ============================================================================
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdbool.h>
-// #include <time.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sched.h>
 #include <pthread.h>
 #include <limits.h>
-//#include "ec_rtutil.h"
 
 
 #define PRIRORITY 30
@@ -29,48 +17,44 @@ void waste_msecs(unsigned int msecs, double corr);
 
 double calculateDiff(bool prints, struct timespec start_time, struct timespec end_time);
 
+double makeRun(bool prints, int wait, double corr,  struct timespec start_time, struct timespec end_time);
+
+void* threadFunction( void* arg);
+
 int main(void) {
+    
+    pthread_t thread_id;
+    pthread_create(&thread_id, NULL, threadFunction, NULL);
+    
+    //struct sched_param{
+    //    50;//sched priority
+    //}
 
-	struct timespec start_time;
+    //error handling
+    //pthread_attr_getschedparam(pthread_attr_t *attr, struct sched_param *param);
+    
+	return EXIT_SUCCESS;
+}
+
+
+void* threadFunction( void* arg){
+    
+    struct timespec start_time;
 	struct timespec end_time;
-	bool printing = false;
+	double msec_diff;
+	bool printing;
+	double corr;
+	unsigned int wait;
+	
+	wait = 150;
+	corr = 1.0;
+	printing = true;
 
-	/*
-	set_sched_properties(SCHED_FIFO, PRIRORITY);
-	int which = PRIO_PROCESS;
-	id_t pid;
-	int priority = 30;
-	int ret;
-
-	pid = getpid();
-	ret = setpriority(which, pid, priority);*/
-	unsigned int wait = 150;
-	double corr = 1.0;
-
-	if (-1 == clock_gettime(CLOCK_MONOTONIC, &start_time)){ //Holen der Aktuellen Zeit
-		perror ("Error in get Time");
-		exit (EXIT_FAILURE);
-	}
-	waste_msecs(wait, corr);
-	if (-1 == clock_gettime(CLOCK_MONOTONIC, &end_time)){ //Holen der Aktuellen Zeit
-		perror ("Error in get Time");
-		exit (EXIT_FAILURE);
-	}
-	double msec_diff = calculateDiff(printing, start_time, end_time);
+	makeRun(printing, wait, corr, start_time, end_time );
 
 	//+++++++++++++++++++++++
 
-	if (-1 == clock_gettime(CLOCK_MONOTONIC, &start_time)){ //Holen der Aktuellen Zeit
-		perror ("Error in get Time");
-		exit (EXIT_FAILURE);
-	}
-	waste_msecs(wait,corr);
-	if (-1 == clock_gettime(CLOCK_MONOTONIC, &end_time)){ //Holen der Aktuellen Zeit
-		perror ("Error in get Time");
-		exit (EXIT_FAILURE);
-	}
-	msec_diff = calculateDiff(printing, start_time, end_time);
-
+	msec_diff = makeRun(printing, wait, corr, start_time, end_time );
 
 	//+++++++++++++++++++++++
 
@@ -80,19 +64,24 @@ int main(void) {
 	//+++++++++++++++++++++++
 
 	for (int counter = 0; counter < 15; counter++){
-		if (-1 == clock_gettime(CLOCK_MONOTONIC, &start_time)){ //Holen der Aktuellen Zeit
-			perror ("Error in get Time");
-			exit (EXIT_FAILURE);
-		}
-		waste_msecs(wait,corr);
-		if (-1 == clock_gettime(CLOCK_MONOTONIC, &end_time)){ //Holen der Aktuellen Zeit
-			perror ("Error in get Time");
-			exit (EXIT_FAILURE);
-		}
-		msec_diff = calculateDiff(printing, start_time, end_time);
+		msec_diff = makeRun(printing, wait, corr, start_time, end_time );
 	}
 
-	return EXIT_SUCCESS;
+	return 0;
+}
+
+double makeRun(bool prints, int wait, double corr, struct timespec start_time, struct timespec end_time){
+	if (-1 == clock_gettime(CLOCK_MONOTONIC, &start_time)){ //Holen der Aktuellen Zeit
+		perror ("Error in get Time");
+		exit (EXIT_FAILURE);
+	}
+	waste_msecs(wait, corr);
+	if (-1 == clock_gettime(CLOCK_MONOTONIC, &end_time)){ //Holen der Aktuellen Zeit
+		perror ("Error in get Time");
+		exit (EXIT_FAILURE);
+	}
+	double msec_diff = calculateDiff(prints, start_time, end_time);
+	return msec_diff;
 }
 
 void waste_msecs(unsigned int msecs, double corr){
