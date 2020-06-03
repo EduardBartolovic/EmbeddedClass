@@ -10,7 +10,6 @@
 #include <pthread.h>
 #include <limits.h>
 
-
 void waste_msecs(unsigned int msecs, double corr);
 
 double calculateDiff( struct timespec start_time, struct timespec end_time);
