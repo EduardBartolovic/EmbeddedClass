@@ -22,7 +22,7 @@ int main(void) {
 
 	struct sched_param sh_param;
 	int policy = SCHED_FIFO;
-	sh_param.sched_priority = 49;
+	sh_param.sched_priority = 1;
 	if (-1 == sched_setscheduler(0,policy, &sh_param)){
 		perror ("Error in Create");
 		exit (EXIT_FAILURE);
@@ -51,47 +51,49 @@ int main(void) {
 
 void* threadFunction( void* arg){
 
-    	struct timespec start_time;
+	struct sched_param sh_param;
+	int policy = SCHED_FIFO;
+	sh_param.sched_priority = 90;
+	if (-1 == sched_setscheduler(0,policy, &sh_param)){
+		perror ("Error in Create");
+		exit (EXIT_FAILURE);
+	}
+
+	pthread_getschedparam(pthread_self(), &policy, &sh_param);
+	printf("Priority=%d\n", sh_param.__sched_priority);
+
+    struct timespec start_time;
 	struct timespec end_time;
 	int LOOPITERATIONS = 10;
 	double corr;
 	unsigned int wait;
-	double msec_diff[LOOPITERATIONS];
 
-	wait = 50;
+	wait = 3;
 	corr = 1.0;
 
 	makeRun( wait, corr, start_time, end_time );//warm up
 
 	//+++++++++++++++++++++++
 
-	int rekord_index = -1;
-	double rekord = -1;
+	double rekord = 10000000;
 	double msec_diff_run;
 	for(int counter = 0 ; counter < LOOPITERATIONS; counter++){
 		msec_diff_run = makeRun( wait, corr, start_time, end_time );
-		if (msec_diff_run > rekord){
+		if (msec_diff_run < rekord){
 			rekord = msec_diff_run;
-			rekord_index = counter;
 		}
-		msec_diff[counter] = msec_diff_run;
+		sleep(1);
 	}
 
-	double totalTime = 0;
-	for(int counter = 0 ; counter < LOOPITERATIONS; counter++){
-		if (counter != rekord_index){ //ignore highest value
-			totalTime += msec_diff[counter];
-		}
-	}
-
-	corr = wait / (totalTime/(LOOPITERATIONS-1));
+	corr = wait / rekord;
 	printf("\nCalibration Ready => Corr: %lf \n", corr);
 
 	//+++++++++++++++++++++++
 
-	for (int counter = 0; counter < 20; counter++){
+	for (int counter = 0; counter < 10; counter++){
+		//waste_msecs(wait, corr);
 		makeRun( wait, corr, start_time, end_time );
-		//sleep(1);
+		sleep(1);
 	}
 
 	return 0;
