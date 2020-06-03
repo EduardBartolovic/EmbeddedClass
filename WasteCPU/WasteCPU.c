@@ -25,34 +25,34 @@ int main(void) {
 	int policy = SCHED_RR;//SCHED_FIFO;
 	sh_param.sched_priority = 49;
 	if (-1 == sched_setscheduler(0,policy, &sh_param)){
-    	perror ("Error in Create");
+		perror ("Error in Create");
 		exit (EXIT_FAILURE);
-    }
+	}
 
 	pthread_t thread_id;
 	pthread_attr_t attr;
 
 	if (-1 == pthread_attr_init(&attr)){
-    	perror ("Error in Create");
+		perror ("Error in Create");
 		exit (EXIT_FAILURE);
-    }
+	}
 
-    if (-1 == pthread_create(&thread_id, &attr, threadFunction, NULL)){
-    	perror ("Error in Create");
+	if (-1 == pthread_create(&thread_id, &attr, threadFunction, NULL)){
+		perror ("Error in Create");
 		exit (EXIT_FAILURE);
-    }
+	}
 
-    if (-1 == pthread_join(thread_id, NULL)){
-    	perror ("Error in JOIN");
+	if (-1 == pthread_join(thread_id, NULL)){
+		perror ("Error in JOIN");
 		exit (EXIT_FAILURE);
-    }
+	}
 
 	return EXIT_SUCCESS;
 }
 
 void* threadFunction( void* arg){
 
-    struct timespec start_time;
+    	struct timespec start_time;
 	struct timespec end_time;
 	int LOOPITERATIONS = 10;
 	double corr;
