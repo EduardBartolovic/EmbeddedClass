@@ -22,7 +22,7 @@ void* threadFunction( void* arg);
 int main(void) {
 
 	struct sched_param sh_param;
-	int policy = SCHED_RR;//SCHED_FIFO;
+	int policy = SCHED_FIFO;
 	sh_param.sched_priority = 49;
 	if (-1 == sched_setscheduler(0,policy, &sh_param)){
 		perror ("Error in Create");
