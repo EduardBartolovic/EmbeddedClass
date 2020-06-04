@@ -10,11 +10,13 @@
 #include <pthread.h>
 #include <limits.h>
 
-void waste_msecs(unsigned int msecs, double corr);
+double corr_factor = 1.0;
+
+void waste_msecs(unsigned int msecs);
 
 double calculateDiff( struct timespec start_time, struct timespec end_time);
 
-double makeRun( int wait, double corr,  struct timespec start_time, struct timespec end_time);
+double makeRun( int wait,  struct timespec start_time, struct timespec end_time);
 
 void* threadFunction( void* arg);
 
@@ -71,18 +73,18 @@ void* threadFunction( void* arg){
 	wait = 3;
 	corr = 1.0;
 
-	makeRun( wait, corr, start_time, end_time );//warm up
+	makeRun( wait, start_time, end_time );//warm up
 
 	//+++++++++++++++++++++++
 
 	double rekord = 10000000;
 	double msec_diff_run;
 	for(int counter = 0 ; counter < LOOPITERATIONS; counter++){
-		msec_diff_run = makeRun( wait, corr, start_time, end_time );
+		msec_diff_run = makeRun( wait, start_time, end_time );
 		if (msec_diff_run < rekord){
 			rekord = msec_diff_run;
 		}
-		sleep(1);
+		//sleep(1);
 	}
 
 	corr = wait / rekord;
@@ -91,20 +93,19 @@ void* threadFunction( void* arg){
 	//+++++++++++++++++++++++
 
 	for (int counter = 0; counter < 10; counter++){
-		//waste_msecs(wait, corr);
-		makeRun( wait, corr, start_time, end_time );
-		sleep(1);
+		makeRun( wait, start_time, end_time );
+		//sleep(1);
 	}
 
 	return 0;
 }
 
-double makeRun( int wait, double corr, struct timespec start_time, struct timespec end_time){
+double makeRun( int wait, struct timespec start_time, struct timespec end_time){
 	if (-1 == clock_gettime(CLOCK_MONOTONIC, &start_time)){ //Holen der Aktuellen Zeit
 		perror ("Error in get Time");
 		exit (EXIT_FAILURE);
 	}
-	waste_msecs(wait, corr);
+	waste_msecs(wait);
 	if (-1 == clock_gettime(CLOCK_MONOTONIC, &end_time)){ //Holen der Aktuellen Zeit
 		perror ("Error in get Time");
 		exit (EXIT_FAILURE);
@@ -113,8 +114,8 @@ double makeRun( int wait, double corr, struct timespec start_time, struct timesp
 	return msec_diff;
 }
 
-void waste_msecs(unsigned int msecs, double corr){
-	int delay = (int) (100000 * msecs * corr);
+void waste_msecs(unsigned int msecs){
+	int delay = (int) (100000 * msecs * corr_factor);
 	volatile int dummy;
 	for(int counter = 0; counter < delay ;counter++){
 		dummy++;
