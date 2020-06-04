@@ -67,11 +67,10 @@ void* threadFunction( void* arg){
     struct timespec start_time;
 	struct timespec end_time;
 	int LOOPITERATIONS = 10;
-	double corr;
 	unsigned int wait;
 
 	wait = 3;
-	corr = 1.0;
+	corr_factor = 1.0;
 
 	makeRun( wait, start_time, end_time );//warm up
 
@@ -87,8 +86,8 @@ void* threadFunction( void* arg){
 		//sleep(1);
 	}
 
-	corr = wait / rekord;
-	printf("\nCalibration Ready => Corr: %lf \n", corr);
+	corr_factor = wait / rekord;
+	printf("\nCalibration Ready => Corr: %lf \n", corr_factor);
 
 	//+++++++++++++++++++++++
 
