@@ -1,4 +1,3 @@
-
 /*
  ============================================================================
  Name        : Aufgabe4.c
@@ -37,8 +36,10 @@
 #include <sched.h>
 #include <pthread.h>
 #include <limits.h>
+#include <semaphore.h>
 
 double corr_factor = 1.0;
+sem_t mutex;
 
 void waste_msecs(unsigned int msecs);
 
@@ -64,7 +65,11 @@ int main(void) {
 	prepEverything(wait); //in ms um den Corr faktor anzupassen
 
 	pthread_t thread_id;
+	//pthread_t thread_id_zwei;
 	pthread_attr_t attr;
+
+	sem_init(&mutex, 0 , 1);
+
 
 	if (-1 == pthread_attr_init(&attr)){
 		perror ("Error in Create");
@@ -85,6 +90,13 @@ int main(void) {
 		perror ("Error in JOIN");
 		exit (EXIT_FAILURE);
 	}
+	/*
+	if (-1 == pthread_join(thread_id, NULL)){
+		perror ("Error in JOIN");
+		exit (EXIT_FAILURE);
+	}*/
+
+	sem_destroy(&mutex);
 
 	return EXIT_SUCCESS;
 }
@@ -157,7 +169,13 @@ void* threadFunction( void* arg){
 			} else {
 				start_time.tv_nsec += MIO; //sonst 1ms warten
 			}
+			if(i == 0 || i % 3 == 0){
+				sem_wait(&mutex);
+			}
 			waste_msecs(2);
+			if(i %3 == 2){
+				sem_post(&mutex);
+			}
 
 	    	if (-1 == clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &start_time, NULL)){ //warten bis Zielzeit erreicht
 	    		perror ("Error in WAIT");
