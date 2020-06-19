@@ -18,8 +18,6 @@
 
  	 - Dokumentieren
 
- Fragen:
- 	 - Echtzeit bei 3 ms eingehalten?
 
 
 
@@ -81,20 +79,20 @@ int main(void) {
 		exit (EXIT_FAILURE);
 	}
 
-	/* if (-1 == pthread_create(&thread_id, &attr, threadFunctionZwei, NULL)){
+	 if (-1 == pthread_create(&thread_id, &attr, threadFunctionZwei, NULL)){
 		perror ("Error in Create");
 		exit (EXIT_FAILURE);
-	} */
+	}
 
 	if (-1 == pthread_join(thread_id, NULL)){
 		perror ("Error in JOIN");
 		exit (EXIT_FAILURE);
 	}
-	/*
+
 	if (-1 == pthread_join(thread_id, NULL)){
 		perror ("Error in JOIN");
 		exit (EXIT_FAILURE);
-	}*/
+	}
 
 	sem_destroy(&mutex);
 
@@ -131,21 +129,18 @@ void prepEverything(unsigned int wait){
 }
 
 void* threadFunction( void* arg){
-	int long LOOP_ITERATIONS = 12;
-	struct timespec end_time;	// Endzeit
+	int long LOOP_ITERATIONS = 13;
 	struct timespec start_time;
 	struct timespec validate_time;
 	int long WRAP_AROUNT = 996000000;
 	int long MIO = 4000000;
 
 	long int validate_nsec[LOOP_ITERATIONS]; //validiere die verstrichenen NS
-	long int validate_sec[LOOP_ITERATIONS]; //validiere die verstrichenen SEc
-
 
 	//Set Priority and Shedular
 	struct sched_param sh_param;
 	int policy = SCHED_FIFO;
-	sh_param.sched_priority = 48;
+	sh_param.sched_priority = 49;
 	if (-1 == sched_setscheduler(0,policy, &sh_param)){
 		perror ("Error in Create");
 		exit (EXIT_FAILURE);
@@ -169,7 +164,7 @@ void* threadFunction( void* arg){
 			} else {
 				start_time.tv_nsec += MIO; //sonst 1ms warten
 			}
-			if(i == 0 || i % 3 == 0){
+			if(i % 3 == 0){
 				sem_wait(&mutex);
 			}
 			waste_msecs(2);
@@ -187,11 +182,9 @@ void* threadFunction( void* arg){
 	    		exit (EXIT_FAILURE);
 	    	}
 	    	validate_nsec[i] = validate_time.tv_nsec; //Speichern der Validierungszeiten sec
-	    	validate_sec[i] = validate_time.tv_sec;//Speichern der Validierungszeiten nano sec
 		}
 	for (int i = 0; i < LOOP_ITERATIONS-1; ++i) //Periodenschleife
 		{
-			printf("Sekunde = %ld \n", validate_sec[i+1] - validate_sec[i]);
 			printf("NSekunde = %ld \n\n", validate_nsec[i+1] - validate_nsec[i]);
 		}
 
@@ -200,10 +193,17 @@ void* threadFunction( void* arg){
 
 
 void* threadFunctionZwei( void* arg){
+	unsigned int LOOP_ITERATIONS = 4;
+	struct timespec start_time;
+	struct timespec end_time;	// Endzeit
+	long int validate_nsec[LOOP_ITERATIONS]; //validiere die verstrichenen NS
+	long int validate_sec[LOOP_ITERATIONS]; //validiere die verstrichenen S
+
+
 	//Set Priority and Shedular
 	struct sched_param sh_param;
 	int policy = SCHED_FIFO;
-	sh_param.sched_priority = 49;
+	sh_param.sched_priority = 48;
 	if (-1 == sched_setscheduler(0,policy, &sh_param)){
 		perror ("Error in Create");
 		exit (EXIT_FAILURE);
@@ -214,9 +214,25 @@ void* threadFunctionZwei( void* arg){
 
 	//+++++++++++++++++++++++
 
-	for (int counter = 0; counter < 4; counter++){
-		//sleep(1);
+	for (int counter = 0; counter < LOOP_ITERATIONS; counter++){
+		sem_wait(&mutex);
+		sem_post(&mutex);
+		if (-1 == clock_gettime(CLOCK_MONOTONIC, &start_time)){ //Holen der Aktuellen Zeit
+			perror ("Error in get Time");
+			exit (EXIT_FAILURE);
+		}
+		waste_msecs(3);
+		if (-1 == clock_gettime(CLOCK_MONOTONIC, &end_time)){ //Holen der Aktuellen Zeit
+			perror ("Error in get Time");
+			exit (EXIT_FAILURE);
+		}
+    	validate_nsec[counter] = end_time.tv_nsec - start_time.tv_nsec; //Speichern der Validierungszeiten sec
 	}
+	sleep(2);
+	for (int i = 0; i < LOOP_ITERATIONS; ++i) //Periodenschleife
+		{
+			printf("Thread 2 : NSekunde = %ld \n\n", validate_nsec[i]);
+		}
 
 	return 0;
 }
