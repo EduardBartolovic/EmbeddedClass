@@ -6,21 +6,6 @@
  Copyright   : This is ours, dont touch this
  Description : Hello World in C, Ansi-style
  ============================================================================
-
-
-
-
-
- Todo:
- 	 - Reaktionszeit des Systems bestimmen -> fragen was genau gemeint ist
- 	 - Semaphore einfügen
- 	 - Threads mit Semaphorenlogik verbinden
-
- 	 - Dokumentieren
-
-
-
-
  */
 
 #include <stdio.h>
@@ -63,34 +48,37 @@ int main(void) {
 	prepEverything(wait); //in ms um den Corr faktor anzupassen
 
 	pthread_t thread_id;
-	//pthread_t thread_id_zwei;
+	pthread_t thread_id_zwei;
 	pthread_attr_t attr;
 
-	sem_init(&mutex, 0 , 1);
 
+	if (-1 == sem_init(&mutex, 0 , 1)){
+		perror ("Error in sem_init");
+		exit (EXIT_FAILURE);
+	}
 
 	if (-1 == pthread_attr_init(&attr)){
-		perror ("Error in Create");
+		perror ("Error in pthread_attr_init");
 		exit (EXIT_FAILURE);
 	}
 
 	if (-1 == pthread_create(&thread_id, &attr, threadFunction, NULL)){
-		perror ("Error in Create");
+		perror ("Error in Create pThread1");
 		exit (EXIT_FAILURE);
 	}
 
-	 if (-1 == pthread_create(&thread_id, &attr, threadFunctionZwei, NULL)){
-		perror ("Error in Create");
-		exit (EXIT_FAILURE);
-	}
-
-	if (-1 == pthread_join(thread_id, NULL)){
-		perror ("Error in JOIN");
+	 if (-1 == pthread_create(&thread_id_zwei, &attr, threadFunctionZwei, NULL)){
+		perror ("Error in Create pThread2");
 		exit (EXIT_FAILURE);
 	}
 
 	if (-1 == pthread_join(thread_id, NULL)){
-		perror ("Error in JOIN");
+		perror ("Error in JOIN pThread1");
+		exit (EXIT_FAILURE);
+	}
+
+	if (-1 == pthread_join(thread_id_zwei, NULL)){
+		perror ("Error in JOIN pThread2");
 		exit (EXIT_FAILURE);
 	}
 
@@ -99,6 +87,9 @@ int main(void) {
 	return EXIT_SUCCESS;
 }
 
+/**
+ * Kalibrierung der WasteMsec
+ */
 void prepEverything(unsigned int wait){
 	//Estimate optimal corr_factor
     struct timespec start_time;
@@ -108,7 +99,7 @@ void prepEverything(unsigned int wait){
 	wait = 3;
 	corr_factor = 1.0;
 
-	makeRun( wait, start_time, end_time );//warm up
+	makeRun( wait, start_time, end_time );//warm up (waste the first call)
 
 	//+++++++++++++++++++++++
 
@@ -119,146 +110,154 @@ void prepEverything(unsigned int wait){
 		if (msec_diff_run < rekord){
 			rekord = msec_diff_run;
 		}
-		//sleep(1);
 	}
-
 	corr_factor = wait / rekord;
 	printf("\nCalibration Ready => Corr: %lf \n", corr_factor);
-
 	return;
 }
 
+/**
+ * Thread 1.
+ */
 void* threadFunction( void* arg){
-	int long LOOP_ITERATIONS = 13;
+	int long LOOP_ITERATIONS = 49;
 	struct timespec start_time;
 	struct timespec validate_time;
 	int long WRAP_AROUNT = 996000000;
 	int long MIO = 4000000;
+	long int validate_nsec[LOOP_ITERATIONS];
 
-	long int validate_nsec[LOOP_ITERATIONS]; //validiere die verstrichenen NS
 
-	//Set Priority and Shedular
+	//Setze die Priorität und den Scheduling algorithmus + Ausgabe auf der Console
 	struct sched_param sh_param;
 	int policy = SCHED_FIFO;
 	sh_param.sched_priority = 49;
 	if (-1 == sched_setscheduler(0,policy, &sh_param)){
-		perror ("Error in Create");
+		perror ("Error in set schedular in Thread 1");
 		exit (EXIT_FAILURE);
 	}
-
-	pthread_getschedparam(pthread_self(), &policy, &sh_param);
+	if (-1 == pthread_getschedparam(pthread_self(), &policy, &sh_param)){
+		perror ("Error while retreving schedparam in Thread 1");
+		exit (EXIT_FAILURE);
+	}
 	printf("Priority=%d\n", sh_param.__sched_priority);
 
 
+	//Eigentliche Funktionalität
 	if (-1 == clock_gettime(CLOCK_MONOTONIC, &start_time)){ //Holen der Aktuellen Zeit
-		perror ("Error in get Time");
+		perror ("Error in get Time (start_time) in Thread 1");
 		exit (EXIT_FAILURE);
 	}
-
-	//Eigentliches Programm
-	for (int i = 0; i < LOOP_ITERATIONS; ++i) //Periodenschleife
-		{
+	for (int i = 0; i < LOOP_ITERATIONS; ++i) {
 			if (start_time.tv_nsec >= WRAP_AROUNT ){ //Falls ein Sekunden wraparound passieren sollte.
 				start_time.tv_sec += 1;
 				start_time.tv_nsec = start_time.tv_nsec %  WRAP_AROUNT;
 			} else {
-				start_time.tv_nsec += MIO; //sonst 1ms warten
+				start_time.tv_nsec += MIO; //sonst 4ms warten
 			}
-			if(i % 3 == 0){
-				sem_wait(&mutex);
+			if(i % 3 == 0){ // hol dir den Mutex
+				if (-1 == sem_wait(&mutex)){
+					perror ("Error in sem_wai in pThread1");
+					exit (EXIT_FAILURE);
+				}
 			}
-			waste_msecs(2);
-			if(i %3 == 2){
-				sem_post(&mutex);
-			}
-
-	    	if (-1 == clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &start_time, NULL)){ //warten bis Zielzeit erreicht
-	    		perror ("Error in WAIT");
-	    		exit (EXIT_FAILURE);
-	    	}
-
+			waste_msecs(2); // verbrauche 2 MS
 	    	if (-1 == clock_gettime(CLOCK_MONOTONIC, &validate_time)){ //Holen der Aktuellen Zeit für die Validierung
-	    		perror ("Error in get Time");
+	    		perror ("Error in get Time (validate_time) in Thread 1");
 	    		exit (EXIT_FAILURE);
 	    	}
-	    	validate_nsec[i] = validate_time.tv_nsec; //Speichern der Validierungszeiten sec
+			if(i %3 == 2){  // gib den mutex wieder frei
+				if (-1 == sem_post(&mutex)){
+					perror ("Error in sem_post in Thread 1");
+					exit (EXIT_FAILURE);
+				}
+			}
+	    	if (-1 == clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &start_time, NULL)){ //warten bis Zielzeit erreicht
+	    		perror ("Error in Sleep in Thread 1");
+	    		exit (EXIT_FAILURE);
+	    	}
+	    	validate_nsec[i] = start_time.tv_nsec - validate_time.tv_nsec; //Speichern der Validierungszeiten
 		}
-	for (int i = 0; i < LOOP_ITERATIONS-1; ++i) //Periodenschleife
-		{
-			printf("NSekunde = %ld \n\n", validate_nsec[i+1] - validate_nsec[i]);
+	for (int i = 0; i < LOOP_ITERATIONS; ++i){
+			printf("NSekunde = %ld \n\n",validate_nsec[i]);
 		}
 
 	return 0;
 }
 
-
+/**
+ * Thread 2
+ */
 void* threadFunctionZwei( void* arg){
-	unsigned int LOOP_ITERATIONS = 4;
+	unsigned int LOOP_ITERATIONS = 16;
 	struct timespec start_time;
-	struct timespec end_time;	// Endzeit
-	long int validate_nsec[LOOP_ITERATIONS]; //validiere die verstrichenen NS
-	long int validate_sec[LOOP_ITERATIONS]; //validiere die verstrichenen S
+	struct timespec end_time;
+	long int validate_nsec[LOOP_ITERATIONS]; //validiere die verstrichene Zeit
 
 
-	//Set Priority and Shedular
+	//Setze die Priorität und den Scheduling algorithmus + Ausgabe auf der Console
 	struct sched_param sh_param;
 	int policy = SCHED_FIFO;
 	sh_param.sched_priority = 48;
 	if (-1 == sched_setscheduler(0,policy, &sh_param)){
-		perror ("Error in Create");
+		perror ("Error in set schedular in Thread 2");
 		exit (EXIT_FAILURE);
 	}
-
-	pthread_getschedparam(pthread_self(), &policy, &sh_param);
+	if (-1 == pthread_getschedparam(pthread_self(), &policy, &sh_param)){
+		perror ("Error while retreving schedparam in Thread 2");
+		exit (EXIT_FAILURE);
+	}
 	printf("Priority=%d\n", sh_param.__sched_priority);
 
-	//+++++++++++++++++++++++
 
+	//Eigentliche Funktionalität
 	for (int counter = 0; counter < LOOP_ITERATIONS; counter++){
-		sem_wait(&mutex);
-		sem_post(&mutex);
+		if (-1 == sem_wait(&mutex)){
+			perror ("Error in sem_wait in Thread 2");
+			exit (EXIT_FAILURE);
+		}
+		if (-1 == sem_post(&mutex)){
+			perror ("Error in sem_post in Thread 2");
+			exit (EXIT_FAILURE);
+		}
 		if (-1 == clock_gettime(CLOCK_MONOTONIC, &start_time)){ //Holen der Aktuellen Zeit
-			perror ("Error in get Time");
+			perror ("Error in get Time in Thread 2");
 			exit (EXIT_FAILURE);
 		}
-		waste_msecs(3);
+		waste_msecs(3); // verbrauche 3 MS
 		if (-1 == clock_gettime(CLOCK_MONOTONIC, &end_time)){ //Holen der Aktuellen Zeit
-			perror ("Error in get Time");
+			perror ("Error in get Time in Thread 2");
 			exit (EXIT_FAILURE);
 		}
-    	validate_nsec[counter] = end_time.tv_nsec - start_time.tv_nsec; //Speichern der Validierungszeiten sec
+    	validate_nsec[counter] = end_time.tv_nsec - start_time.tv_nsec; //Speichern der Validierungszeiten
 	}
-	sleep(2);
-	for (int i = 0; i < LOOP_ITERATIONS; ++i) //Periodenschleife
-		{
+	sleep(2); // damit die Prints sich nicht in die Quere kommen von p1 und p2
+	for (int i = 0; i < LOOP_ITERATIONS; ++i) {
 			printf("Thread 2 : NSekunde = %ld \n\n", validate_nsec[i]);
 		}
-
 	return 0;
 }
 
+/**
+ * WasteMsec mit Zeiterfassung
+ */
 double makeRun( int wait, struct timespec start_time, struct timespec end_time){
 	if (-1 == clock_gettime(CLOCK_MONOTONIC, &start_time)){ //Holen der Aktuellen Zeit
-		perror ("Error in get Time");
+		perror ("Error in get Time in makeRun");
 		exit (EXIT_FAILURE);
 	}
 	waste_msecs(wait);
 	if (-1 == clock_gettime(CLOCK_MONOTONIC, &end_time)){ //Holen der Aktuellen Zeit
-		perror ("Error in get Time");
+		perror ("Error in get Time in makeRun");
 		exit (EXIT_FAILURE);
 	}
 	double msec_diff = calculateDiff( start_time, end_time);
 	return msec_diff;
 }
 
-void waste_msecs(unsigned int msecs){
-	int delay = (int) (100000 * msecs * corr_factor);
-	volatile int dummy;
-	for(int counter = 0; counter < delay ;counter++){
-		dummy++;
-	}
-}
-
+/**
+ * Zeitdifferenz mit WrapAround berücksichtigt
+ */
 double calculateDiff( struct timespec start_time, struct timespec end_time){
 	long int sec_diff = end_time.tv_sec - start_time.tv_sec;
 	//printf(" Sec: %ld \n", sec_diff);
@@ -275,3 +274,12 @@ double calculateDiff( struct timespec start_time, struct timespec end_time){
 	printf("Milli Sec: %lf \n", msec_diff);
 	return msec_diff;
 }
+
+void waste_msecs(unsigned int msecs){
+	int delay = (int) (100000 * msecs * corr_factor);
+	volatile int dummy;
+	for(int counter = 0; counter < delay ;counter++){
+		dummy++;
+	}
+}
+
