@@ -149,39 +149,38 @@ void* threadFunction( void* arg){
 		exit (EXIT_FAILURE);
 	}
 	for (int i = 0; i < LOOP_ITERATIONS; ++i) {
-			if (start_time.tv_nsec >= WRAP_AROUNT ){ //Falls ein Sekunden wraparound passieren sollte.
-				start_time.tv_sec += 1;
-				start_time.tv_nsec = start_time.tv_nsec %  WRAP_AROUNT;
-			} else {
-				start_time.tv_nsec += MIO; //sonst 4ms warten
+		if (start_time.tv_nsec >= WRAP_AROUNT ){ //Falls ein Sekunden wraparound passieren sollte.
+			start_time.tv_sec += 1;
+			start_time.tv_nsec = start_time.tv_nsec %  WRAP_AROUNT;
+		} else {
+			start_time.tv_nsec += MIO; //sonst 4ms warten
+		}
+		if(i % 3 == 0){ // hol dir den Mutex
+			if (-1 == sem_wait(&mutex)){
+				perror ("Error in sem_wai in pThread1");
+				exit (EXIT_FAILURE);
 			}
-			if(i % 3 == 0){ // hol dir den Mutex
-				if (-1 == sem_wait(&mutex)){
-					perror ("Error in sem_wai in pThread1");
-					exit (EXIT_FAILURE);
-				}
-			}
-			waste_msecs(2); // verbrauche 2 MS
+		}
+		waste_msecs(2); // verbrauche 2 MS
 	    	if (-1 == clock_gettime(CLOCK_MONOTONIC, &validate_time)){ //Holen der Aktuellen Zeit für die Validierung
 	    		perror ("Error in get Time (validate_time) in Thread 1");
 	    		exit (EXIT_FAILURE);
 	    	}
-			if(i %3 == 2){  // gib den mutex wieder frei
-				if (-1 == sem_post(&mutex)){
-					perror ("Error in sem_post in Thread 1");
-					exit (EXIT_FAILURE);
-				}
+		if(i %3 == 2){  // gib den mutex wieder frei
+			if (-1 == sem_post(&mutex)){
+				perror ("Error in sem_post in Thread 1");
+				exit (EXIT_FAILURE);
 			}
+		}
 	    	if (-1 == clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &start_time, NULL)){ //warten bis Zielzeit erreicht
 	    		perror ("Error in Sleep in Thread 1");
 	    		exit (EXIT_FAILURE);
 	    	}
 	    	validate_nsec[i] = start_time.tv_nsec - validate_time.tv_nsec; //Speichern der Validierungszeiten
-		}
+	}
 	for (int i = 0; i < LOOP_ITERATIONS; ++i){
-			printf("NSekunde = %ld \n\n",validate_nsec[i]);
-		}
-
+		printf("NSekunde = %ld \n\n",validate_nsec[i]);
+	}
 	return 0;
 }
 
