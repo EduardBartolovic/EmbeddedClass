@@ -4,7 +4,7 @@
  Author      : Eduard Bartolovic, Richard Reik
  Version     :
  Copyright   : This is ours, dont touch this
- Description : Hello World in C, Ansi-style
+ Description : 2 Verschiedene Threads arbeiten zusammen
  ============================================================================
  */
 
