@@ -64,7 +64,7 @@ void* threadFunction( void* arg){
 	pthread_getschedparam(pthread_self(), &policy, &sh_param);
 	printf("Priority=%d\n", sh_param.__sched_priority);
 
-    struct timespec start_time;
+    	struct timespec start_time;
 	struct timespec end_time;
 	int LOOPITERATIONS = 10;
 	unsigned int wait;
